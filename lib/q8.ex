@@ -1,8 +1,8 @@
 defmodule Q8 do
   def solve do
-    data = parseData()
+    data = parseData() |> getAllInstructionSets()
 
-    executeInstruction(data, Enum.at(data, 0), 0, [], nil)
+    Enum.reduce_while(data, {}, fn set, _acc -> executeInstruction(set, Enum.at(set, 0), 0, []) end)
   end
 
   def extractInformation(instruction) do
@@ -14,17 +14,25 @@ defmodule Q8 do
       action = temp |> Enum.at(2) |> String.first()
       number = temp |> Enum.at(2) |> String.replace(action, "") |> String.to_integer()
 
-      %{curr: current, op_code: op_code, action: action, number: number}
+      %{id: current, op_code: op_code, action: action, number: number}
     else
       nil
     end
+  end
+
+  def getAllInstructionSets(instructions) do
+    Enum.reduce(instructions, [], fn ins, acc -> if String.contains?(ins.op_code, ["jmp", "nop"]) do acc ++ [changeInstruction(ins, instructions)] else acc end end)
+  end
+
+  def changeInstruction(instruction, all_instructions) do
+    new_instruction = instruction |> Map.replace!(:op_code, getNewOpCode(instruction.op_code))
+    List.replace_at(all_instructions, instruction.id, new_instruction)
   end
 
   def getNewOpCode(old_code) do
     case old_code do
       "jmp" -> "nop"
       "nop" -> "jmp"
-      "acc" -> "acc"
     end
   end
 
@@ -32,19 +40,15 @@ defmodule Q8 do
     Integer.to_string(map.curr) <>" "<>map.op_code<>" "<>map.action<>Integer.to_string(map.number)
   end
 
-  def executeInstruction(all_instructions, instruction, current_acc, executed_instructions, last_instruction) do
-    info = extractInformation(instruction)
+  def executeInstruction(all_instructions, instruction, current_acc, executed_instructions) do
     cond do
-      info == nil -> {:ok, current_acc}
-      Enum.member?(executed_instructions, info.curr) ->
-        new_info = extractInformation(last_instruction)
-        new_instruction = new_info |> Map.replace!(:op_code, getNewOpCode(new_info.op_code)) |> putInstructionBackTogether()
-        executeInstruction(all_instructions, new_instruction, current_acc, executed_instructions -- [info.curr], last_instruction)
-      info.op_code === "acc" && info.action === "-" -> executeInstruction(all_instructions, Enum.at(all_instructions, info.curr + 1), current_acc - info.number, executed_instructions ++ [info.curr], instruction)
-      info.op_code === "acc" && info.action === "+" -> executeInstruction(all_instructions, Enum.at(all_instructions, info.curr + 1), current_acc + info.number, executed_instructions ++ [info.curr], instruction)
-      info.op_code === "jmp" && info.action === "+" -> executeInstruction(all_instructions, Enum.at(all_instructions, info.curr + info.number), current_acc, executed_instructions ++ [info.curr], instruction)
-      info.op_code === "jmp" && info.action === "-" -> executeInstruction(all_instructions, Enum.at(all_instructions, info.curr - info.number), current_acc,executed_instructions ++ [info.curr], instruction)
-      true ->  executeInstruction(all_instructions, Enum.at(all_instructions, info.curr + 1), current_acc, executed_instructions ++ [info.curr], instruction)
+      instruction == nil -> {:halt, current_acc}
+      Enum.member?(executed_instructions, instruction.id) -> {:cont, current_acc}
+      instruction.op_code === "acc" && instruction.action === "-" -> executeInstruction(all_instructions, Enum.at(all_instructions, instruction.id + 1), current_acc - instruction.number, executed_instructions ++ [instruction.id])
+      instruction.op_code === "acc" && instruction.action === "+" -> executeInstruction(all_instructions, Enum.at(all_instructions, instruction.id + 1), current_acc + instruction.number, executed_instructions ++ [instruction.id])
+      instruction.op_code === "jmp" && instruction.action === "+" -> executeInstruction(all_instructions, Enum.at(all_instructions, instruction.id + instruction.number), current_acc, executed_instructions ++ [instruction.id])
+      instruction.op_code === "jmp" && instruction.action === "-" -> executeInstruction(all_instructions, Enum.at(all_instructions, instruction.id - instruction.number), current_acc,executed_instructions ++ [instruction.id])
+      true ->  executeInstruction(all_instructions, Enum.at(all_instructions, instruction.id + 1), current_acc, executed_instructions ++ [instruction.id])
     end
   end
 
@@ -661,10 +665,10 @@ defmodule Q8 do
   nop -554
   jmp +1"
 
-  list_data = String.split(data,"\r\n")
+  list_data = String.split(data,"\n")
   list_length = length(list_data) - 1
   for i <- 0..list_length do
-    to_string(i) <> " " <> Enum.at(list_data, i)
+    extractInformation(to_string(i) <> " " <> Enum.at(list_data, i))
   end
  end
 end

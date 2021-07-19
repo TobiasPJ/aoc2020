@@ -1,7 +1,7 @@
 defmodule Q7 do
   def solve do
     all_rules = parseData()
-    all_types = getBagTypes(all_rules)
+    #all_types = getBagTypes(all_rules)
 
     #Enum.count(all_types, fn type -> checkContain(all_rules, type, "shiny gold") end)
     getNumberOfBags(all_rules, "shiny gold bags")
