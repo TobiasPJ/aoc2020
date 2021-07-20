@@ -1,13 +1,81 @@
 defmodule Q9 do
   def solve do
     data = parseData()
+    all_ranges = getAllRanges(0..24, data)
 
+    target_value = Enum.reduce_while(all_ranges, 0, fn d, _acc ->
+      listAndTarget = getSubListAndTarget(d, data)
+      checkNum(listAndTarget.list, listAndTarget.target)
+    end)
 
+    checkAllRanges(2, data, target_value)
+  end
+
+  def checkAllRanges(start, data, target) do
+    max = length(data)
+    all_nums = Enum.to_list(start..max)
+    Enum.reduce_while(all_nums, 0, fn num, _acc ->
+      numbers = getAllSubranges(data, num)
+      checkRanges(numbers, target)
+    end)
+  end
+
+  def checkRanges(numbers, target) do
+    Enum.reduce(numbers, 0, fn n, acc ->
+      if Enum.sum(n) === target do
+        smallest = Enum.min(n)
+        biggest = Enum.max(n)
+        IO.inspect(smallest + biggest)
+        {:halt, smallest + biggest}
+      else
+        {:cont, acc}
+      end
+    end)
+  end
+
+  def getAllSubranges(list, len) do
+    Enum.chunk_every(list, len, 1, :discard)
+  end
+
+  def getAllRanges(start_range, data) do
+    max_value = length(data) - 1
+    min..max = start_range
+    for i <- min..max_value do
+      Range.new(min + i, max + i)
+    end
+  end
+
+  def getSubListAndTarget(range, list) do
+    _min..max = range
+
+    num_list = Enum.slice(list, range)
+    target = Enum.at(list, max + 1)
+
+    %{list: num_list, target: target}
   end
 
   def checkNum(num_list, num) do
-
+    combinations = num_list |> length() |> Kernel.-(1) |> createCombinations() |> Enum.filter(fn map -> map.first != map.second end)
+    if Enum.reduce_while(combinations, false, fn comb, _acc -> plusCond(num_list, comb.first, comb.second, num) end) do
+      {:cont, num}
+    else
+      {:halt,  num}
+    end
   end
+
+  def plusCond(num_list, num1, num2, goal) do
+    cond do
+      Enum.at(num_list, num1) +  Enum.at(num_list, num2) === goal -> {:halt,  true}
+      Enum.at(num_list, num1) +  Enum.at(num_list, num2) != goal -> {:cont,  false}
+    end
+  end
+
+  def createCombinations(max) do
+    for i <- 0..max, j <- 0..max do
+      %{first: i,second: j}
+    end
+  end
+
   def parseData do
     data = "17
     31
