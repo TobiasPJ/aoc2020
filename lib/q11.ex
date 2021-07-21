@@ -1,105 +1,266 @@
 defmodule Q11 do
   def solve do
     data = parseData()
-    some_data = "LLLLLL#LL.L"
 
-    some_data |> String.graphemes() |> List.replace_at(2, "#") |> List.to_string()
+    empty_state =
+      "LLLLLLLL.LLL.LLLLLLLLLLLLL.LL.LLLLLL.LL.LLLLLLLLLLLLLL.LLLLLLL.LLLLLLLLLLLLLLLLLLL.LLLLLLLL "
+      |> String.replace("L", ".")
+      |> String.duplicate(length(data))
+      |> String.split()
 
-    #checkSeats(data, 0, 0)
-    #checkIsSame(data,)
+    final_state = doUntilStable(data, 0, 0, empty_state, 0, empty_state)
 
+    final_state |> List.to_string() |> String.graphemes() |> Enum.frequencies() |> Map.get("#")
   end
 
-  def checkSeats(data, row_num, col_num) do
-    if !(row_num == length(data) - 1 && col_num == String.length(Enum.at(data, row_num))) do
-      curr_tile = data |> Enum.at(row_num) |> String.at(col_num)
-      IO.inspect(curr_tile)
-      if col_num == String.length(Enum.at(data, row_num)) do
-        checkSeats(data, row_num + 1, 0)
-      else
-        checkSeats(data, row_num, col_num + 1)
-      end
+  def doUntilStable(data, start_row, start_col, template, count, old_state) do
+    if !checkIsSame(data, old_state) do
+      IO.inspect(data)
+      state = checkSeats(data, start_row, start_col, template)
+      doUntilStable(state, start_row, start_col, template, count + 1, data)
+    else
+      data
     end
+  end
+
+  def checkSeats(data, row_num, col_num, new_state) do
+    if row_num < length(data) do
+      curr_tile = data |> Enum.at(row_num) |> String.at(col_num)
+      bool_list = checkAllAdjecent(data, row_num, col_num)
+      freq = Enum.frequencies(bool_list)
+
+      cond do
+        curr_tile == "L" && Enum.all?(bool_list) ->
+          changed_state = replaceSeat(row_num, col_num, new_state, "#")
+
+          if col_num == String.length(Enum.at(data, row_num)) - 1 do
+            checkSeats(data, row_num + 1, 0, changed_state)
+          else
+            checkSeats(data, row_num, col_num + 1, changed_state)
+          end
+
+        curr_tile == "#" && Map.get_lazy(freq, false, fn -> 0 end) > 4 ->
+          changed_state = replaceSeat(row_num, col_num, new_state, "L")
+
+          if col_num == String.length(Enum.at(data, row_num)) - 1 do
+            checkSeats(data, row_num + 1, 0, changed_state)
+          else
+            checkSeats(data, row_num, col_num + 1, changed_state)
+          end
+
+        curr_tile == "#" ->
+          changed_state = replaceSeat(row_num, col_num, new_state, "#")
+
+          if col_num == String.length(Enum.at(data, row_num)) - 1 do
+            checkSeats(data, row_num + 1, 0, changed_state)
+          else
+            checkSeats(data, row_num, col_num + 1, changed_state)
+          end
+
+        curr_tile == "L" ->
+          changed_state = replaceSeat(row_num, col_num, new_state, "L")
+
+          if col_num == String.length(Enum.at(data, row_num)) - 1 do
+            checkSeats(data, row_num + 1, 0, changed_state)
+          else
+            checkSeats(data, row_num, col_num + 1, changed_state)
+          end
+
+        curr_tile == "." ->
+          if col_num == String.length(Enum.at(data, row_num)) - 1 do
+            checkSeats(data, row_num + 1, 0, new_state)
+          else
+            checkSeats(data, row_num, col_num + 1, new_state)
+          end
+      end
+    else
+      new_state
+    end
+  end
+
+  def replaceSeat(row_num, col_num, new_data, new_seat_state) do
+    new_row =
+      new_data
+      |> Enum.at(row_num)
+      |> String.graphemes()
+      |> List.replace_at(col_num, new_seat_state)
+      |> List.to_string()
+
+    List.replace_at(new_data, row_num, new_row)
   end
 
   def checkIsSame(data, old_data) do
     List.to_string(data) === List.to_string(old_data)
   end
 
+  def checkAllAdjecent(data, row, col) do
+    [
+      checkUp(data, row, col),
+      checkDown(data, row, col),
+      checkLeft(data, row, col),
+      checkRight(data, row, col),
+      checkRightUp(data, row, col),
+      checkRightDown(data, row, col),
+      checkLeftUp(data, row, col),
+      checkLeftDown(data, row, col)
+    ]
+  end
+
   def checkUp(data, row_num, col_num) do
     cond do
-      row_num == 0 -> true
-      data |> Enum.at(row_num - 1) |> String.at(col_num) == "L" -> true
-      data |> Enum.at(row_num - 1) |> String.at(col_num) == "#" -> false
-      true -> true
+      row_num == 0 ->
+        true
+
+      data |> Enum.at(row_num - 1) |> String.at(col_num) == "L" ->
+        true
+
+      data |> Enum.at(row_num - 1) |> String.at(col_num) == "#" ->
+        false
+
+      data |> Enum.at(row_num - 1) |> String.at(col_num) == "." ->
+        checkUp(data, row_num - 1, col_num)
+
+      true ->
+        true
     end
   end
 
   def checkDown(data, row_num, col_num) do
     cond do
-      row_num == length(data) -> true
-      data |> Enum.at(row_num + 1) |> String.at(col_num) == "L" -> true
-      data |> Enum.at(row_num + 1) |> String.at(col_num) == "#" -> false
-      true -> true
+      row_num == length(data) - 1 ->
+        true
+
+      data |> Enum.at(row_num + 1) |> String.at(col_num) == "L" ->
+        true
+
+      data |> Enum.at(row_num + 1) |> String.at(col_num) == "#" ->
+        false
+
+      data |> Enum.at(row_num + 1) |> String.at(col_num) == "." ->
+        checkDown(data, row_num + 1, col_num)
+
+      true ->
+        true
     end
   end
 
   def checkLeft(data, row_num, col_num) do
     cond do
-      col_num == 0 -> true
-      data |> Enum.at(row_num) |> String.at(col_num - 1) == "L" -> true
-      data |> Enum.at(row_num) |> String.at(col_num - 1) == "#" -> false
-       true -> true
+      col_num == 0 ->
+        true
+
+      data |> Enum.at(row_num) |> String.at(col_num - 1) == "L" ->
+        true
+
+      data |> Enum.at(row_num) |> String.at(col_num - 1) == "#" ->
+        false
+
+      data |> Enum.at(row_num) |> String.at(col_num - 1) == "." ->
+        checkLeft(data, row_num, col_num - 1)
+
+      true ->
+        true
     end
   end
 
   def checkRight(data, row_num, col_num) do
     cond do
-      col_num == String.length(Enum.at(data, row_num)) -> true
-      data |> Enum.at(row_num) |> String.at(col_num + 1) == "L" -> true
-      data |> Enum.at(row_num) |> String.at(col_num + 1) == "#" -> false
-      true -> true
+      col_num == String.length(Enum.at(data, row_num)) ->
+        true
+
+      data |> Enum.at(row_num) |> String.at(col_num + 1) == "L" ->
+        true
+
+      data |> Enum.at(row_num) |> String.at(col_num + 1) == "#" ->
+        false
+
+      data |> Enum.at(row_num) |> String.at(col_num + 1) == "." ->
+        checkRight(data, row_num, col_num + 1)
+
+      true ->
+        true
     end
   end
 
   def checkRightUp(data, row_num, col_num) do
     cond do
-      row_num == 0 || col_num == String.length(Enum.at(data, row_num)) -> true
-      data |> Enum.at(row_num - 1) |> String.at(col_num + 1) == "L" -> true
-      data |> Enum.at(row_num - 1) |> String.at(col_num + 1) == "#" -> false
-      true -> true
+      row_num == 0 || col_num == String.length(Enum.at(data, row_num)) ->
+        true
+
+      data |> Enum.at(row_num - 1) |> String.at(col_num + 1) == "L" ->
+        true
+
+      data |> Enum.at(row_num - 1) |> String.at(col_num + 1) == "#" ->
+        false
+
+      data |> Enum.at(row_num - 1) |> String.at(col_num + 1) == "." ->
+        checkRightUp(data, row_num - 1, col_num + 1)
+
+      true ->
+        true
     end
   end
 
   def checkRightDown(data, row_num, col_num) do
     cond do
-      row_num == length(data) || col_num == String.length(Enum.at(data, row_num)) -> true
-      data |> Enum.at(row_num + 1) |> String.at(col_num + 1) == "L" -> true
-      data |> Enum.at(row_num + 1) |> String.at(col_num + 1) == "#" -> false
-      true -> true
+      row_num == length(data) - 1 || col_num == String.length(Enum.at(data, row_num)) ->
+        true
+
+      data |> Enum.at(row_num + 1) |> String.at(col_num + 1) == "L" ->
+        true
+
+      data |> Enum.at(row_num + 1) |> String.at(col_num + 1) == "#" ->
+        false
+
+      data |> Enum.at(row_num + 1) |> String.at(col_num + 1) == "." ->
+        checkRightDown(data, row_num + 1, col_num + 1)
+
+      true ->
+        true
     end
   end
 
   def checkLeftDown(data, row_num, col_num) do
     cond do
-      row_num == length(data) || col_num == 0 -> true
-      data |> Enum.at(row_num + 1) |> String.at(col_num - 1) == "L" -> true
-      data |> Enum.at(row_num + 1) |> String.at(col_num - 1) == "#" -> false
-      true -> true
+      row_num == length(data) - 1 || col_num == 0 ->
+        true
+
+      data |> Enum.at(row_num + 1) |> String.at(col_num - 1) == "L" ->
+        true
+
+      data |> Enum.at(row_num + 1) |> String.at(col_num - 1) == "#" ->
+        false
+
+      data |> Enum.at(row_num + 1) |> String.at(col_num - 1) == "." ->
+        checkLeftDown(data, row_num + 1, col_num - 1)
+
+      true ->
+        true
     end
   end
 
   def checkLeftUp(data, row_num, col_num) do
     cond do
-      row_num == 0 || col_num == 0 -> true
-      data |> Enum.at(row_num - 1) |> String.at(col_num + 1) == "L" -> true
-      data |> Enum.at(row_num - 1) |> String.at(col_num + 1) == "#" -> false
-      true -> true
+      row_num == 0 || col_num == 0 ->
+        true
+
+      data |> Enum.at(row_num - 1) |> String.at(col_num - 1) == "L" ->
+        true
+
+      data |> Enum.at(row_num - 1) |> String.at(col_num - 1) == "#" ->
+        false
+
+      data |> Enum.at(row_num - 1) |> String.at(col_num - 1) == "." ->
+        checkLeftUp(data, row_num - 1, col_num - 1)
+
+      true ->
+        true
     end
   end
 
   def parseData do
-    data = "LLLLLLLL.LLL.LLLLLLLLLLLLL.LL.LLLLLL.LL.LLLLLLLLLLLLLL.LLLLLLL.LLLLLLLLLLLLLLLLLLL.LLLLLLLL
+    data =
+      "LLLLLLLL.LLL.LLLLLLLLLLLLL.LL.LLLLLL.LL.LLLLLLLLLLLLLL.LLLLLLL.LLLLLLLLLLLLLLLLLLL.LLLLLLLL
     LLLLLLLL.LLLLLLLLLL.LLLLLLLLL.LLLLLL.LLLLLL.LL.LLLLLLL.LLLLLL.LLLLLLLLL.LLLL.LLLLL.LLLLLLLL
     LLLLLLLL.LLLLL.LLLL.LLL.LLLLLLLLLLLL.LLL..LLLLLL.LLLLL.LLLLLL.LLLLLLLLLLLLLLLLLLLL.LLLLLLLL
     LLLLLLLL.LLLLL.LLLL.LLLLLLLLLLLLLLLLLLLLLLLLLL.LLLLLLLLLLLLLLLLLLLLLLLLLLL.LLLLLLL.LLLLLLLL
